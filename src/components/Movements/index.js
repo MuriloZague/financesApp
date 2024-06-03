@@ -2,27 +2,26 @@ import React from "react";
 import { View, Text, StyleSheet, TouchableOpacity } from 'react-native';
 import { useState} from 'react';
 
-export default function Movements({ data }) {
+export default function Movements({ data, onDelete }) {
 
- const [showValue, setShowValue] = useState(false);
+ const [showValue, setShowValue] = useState(true);
 
  return (
-   <TouchableOpacity style={styles.container} onPress={() => setShowValue(!showValue)}>
+   <TouchableOpacity style={styles.container} onPress={() => setShowValue(!showValue)} onLongPress={() => onDelete(data)}>
         <Text style={styles.date}>{data.date}</Text>
 
     <View style={styles.content}>
         <Text style={styles.label}>{data.label}</Text>
 
        {showValue ? (
-         <Text style={data.type === 1 ? styles.value : styles.expenses}>
-         {data.type === 1 ? `R$ ${data.value}` : `R$ -${data.value}`}
+         <Text style={data.type === '1' ? styles.value : styles.expenses}>
+         {data.type === '1' ? `R$ ${data.value}` : `R$ -${data.value}`}
      </Text>
        ) : (
         <View style={styles.skeleton}>
 
         </View>
        )}
-
     </View>   
    </TouchableOpacity>
   );

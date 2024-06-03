@@ -1,64 +1,168 @@
-import React from "react";
-import { StatusBar } from 'expo-status-bar';
-import { FlatList, StyleSheet, Text, View } from 'react-native';
+import React, { useState, useEffect } from "react";
+import { FlatList, StyleSheet, Text, View, Button, Modal, TouchableOpacity } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import Header from '../../components/Header';
 import Balance from '../../components/Balance';
 import Movements from '../../components/Movements';
 import Actions from '../../components/Actions';
-
-
-const list = [
-    {
-        id: 1,
-        label: 'Conta de Luz',
-        value: '105,52',
-        date: '02/05/2024',
-        type: 0 //despesas // saídas
-    },
-    {
-        id: 2,
-        label: 'Transferência para Pedro',
-        value: '90,00',
-        date: '03/05/2024',
-        type: 0 //despesas // saídas
-    },
-    {
-        id: 3,
-        label: 'Transferência de Pedro',
-        value: '20,00',
-        date: '01/05/2024',
-        type: 1 //receita // entradas
-    },
-    {
-        id: 4,
-        label: 'Aluguel',
-        value: '216,78',
-        date: '30/04/2024',
-        type: 0 //despesas // saídas
-    },
-]
+import ModalPassword from "../../modal/entradas";
+import ModalSaida from "../../modal/saídas";
 
 export default function Home() {
+
+  const [list, setList] = useState([]);
+  const [isModalVisible, setIsModalVisible] = useState(false);
+  const [isSaidaModalVisible, setIsSaidaModalVisible] = useState(false);
+  const [totalGastos, setTotalGastos] = useState(0);
+  const [totalGanhos, setTotalGanhos] = useState(10);
+
+
+  useEffect(() => {
+    // Função para carregar os dados do AsyncStorage
+    const loadData = async () => {
+      try {
+        const jsonValue = await AsyncStorage.getItem('movements');
+        if (jsonValue != null) {
+          setList(JSON.parse(jsonValue));
+        }
+      } catch (e) {
+        console.error('Não foi possivel carregar AsyncStorage', e);
+      }
+    };
+
+    loadData();
+  }, []);
+
+
+  const handleAddMovement = async (label, value, date, type, entrada) => {
+    const newList = [...list, { label, value, date, type, entrada }];
+    setList(newList);
+
+    try {
+      const jsonValue = JSON.stringify(newList);
+      await AsyncStorage.setItem('movements', jsonValue);
+    } catch (e) {
+      console.error('Não foi possivel salvar AsyncStorage', e);
+    }
+
+    setIsModalVisible(false);
+  };
+
+
+  const handleAddSaida = async (label, value, date, entrada) => {
+    handleAddMovement(label, value, date, "saída", entrada); // Definindo o tipo como "saída"
+    setIsSaidaModalVisible(false);
+  };
+
+  // Função para calcular a soma dos gastos
+  const calcularTotalGastos = () => {
+    let total1 = 0;
+    list.forEach(item => {
+      // Verifica se o tipo da movimentação é "saída" antes de somar o valor
+      if (item.type === "saída") {
+        total1 += parseFloat(item.value);
+      }
+    });
+    setTotalGastos(total1);
+  };
+
+  const calcularTotalGanhos = () => {
+    let total = 0;
+    list.forEach(item => {
+      // Verifica se o tipo da movimentação é "entrada" antes de somar o valor
+      if (item.type === "1") {
+        total += parseFloat(item.value);
+      }
+    });
+    setTotalGanhos(total);
+  };
+  const handleDeleteMovement = async (index) => {
+    const newList = [...list];
+    newList.splice(index, 1); // Remove o item do índice especificado
+    setList(newList);
+
+    try {
+      const jsonValue = JSON.stringify(newList);
+      await AsyncStorage.setItem('movements', jsonValue);
+    } catch (e) {
+      console.error('Failed to save data to AsyncStorage', e);
+    }
+  };
+
+  const handleDeleteAll = async (index) => {
+    const newList = [...list];
+    newList.splice(index); // Remove o item do índice especificado
+    setList(newList);
+
+    try {
+      const jsonValue = JSON.stringify(newList);
+      await AsyncStorage.setItem('movements', jsonValue);
+    } catch (e) {
+      console.error('Failed to save data to AsyncStorage', e);
+    }
+  };
+
+  const openSaidaModal = () => {
+    setIsSaidaModalVisible(true);
+  };
+
+  // Chamada da função de cálculo quando a lista de movimentações é alterada
+  useEffect(() => {
+    calcularTotalGastos();
+    calcularTotalGanhos();
+  }, [list]);
+
   return (
 
     <View style={styles.container}>
-      <Header name="Murilo Zague"/>  
-      
-      <Balance saldo='9.632,00' gastos='-392,30'/>
+      <Header name="Murilo Zague" />
 
-    <View style={styles.actionContainer}>
-        <Actions/>
-    </View>
+      <Balance saldo={(totalGanhos - totalGastos).toFixed(2)} gastos={totalGastos.toFixed(2)} />
 
-      <Text style={styles.title}>Últimas Movimentações</Text>
+      <View style={styles.actionContainer}>
+        <Actions
+          openModal={() => setIsModalVisible(true)}
+          openSaidaModal={openSaidaModal}
+
+        />
+      </View>
+
+      <View style={styles.titleContainer}>
+        <Text style={styles.title}>Últimas Movimentações</Text>
+        <TouchableOpacity onPress={handleDeleteAll}>
+          <Text style={styles.clear}>Limpar Tudo</Text>
+        </TouchableOpacity>
+      </View>
 
       <FlatList style={styles.list}
         data={list}
-        keyExtractor={ (item) => String(item.id)}
+        keyExtractor={(item, index) => String(index)}
         showsVerticalScrollIndicator={false}
-        renderItem={ ({item}) => <Movements data={item} /> }
+        renderItem={({ item, index }) =>
+          <Movements data={item} onDelete={() => handleDeleteMovement(index)} />}
+      />
+
+      <Modal
+        visible={isModalVisible}
+        animationType="fade"
+        transparent={true}
+      >
+        <ModalPassword
+          handleClose={() => setIsModalVisible(false)}
+          handleAddMovement={(label, value, date, type) => handleAddMovement(label, value, date, type)}
         />
-        
+      </Modal>
+      <Modal
+        visible={isSaidaModalVisible}
+        animationType="fade"
+        transparent={true}
+      >
+        <ModalSaida
+          handleClose={() => setIsSaidaModalVisible(false)}
+          handleAddSaida={(label, value, date, type) => handleAddSaida(label, value, date, type)}
+        />
+      </Modal>
+
     </View>
 
   );
@@ -77,5 +181,14 @@ const styles = StyleSheet.create({
   list: {
     marginStart: 14,
     marginEnd: 14,
+  },
+  titleContainer: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+  },
+  clear: {
+    marginTop: 19,
+    margin: 14,
+    fontSize: 12,
   },
 });

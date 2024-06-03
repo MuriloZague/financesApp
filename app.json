@@ -2,6 +2,11 @@
   "expo": {
     "name": "ZagueFinances",
     "slug": "ZagueFinances",
-    "version": "1.0.0"
+    "version": "1.0.0",
+    "extra": {
+      "eas": {
+        "projectId": "053a5f0a-a883-4e72-9cdf-3eb6f8f6162f"
+      }
+    }
   }
 }
